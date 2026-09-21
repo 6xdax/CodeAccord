@@ -1,7 +1,7 @@
 interface:
   display_name: "CodeAccord"
-  short_description: "Align on software changes before implementation"
-  default_prompt: "Use $codeaccord to investigate this change, challenge assumptions, agree on scope, implement it, and verify the result."
+  short_description: "Explore, agree, implement, verify, and recover changes"
+  default_prompt: "Use $codeaccord to explore this change through a read-only inspect-and-challenge loop, present the fixed Accord when ready, implement the confirmed scope, verify the result, and keep one recovery checkpoint when needed."
 
 policy:
   allow_implicit_invocation: true

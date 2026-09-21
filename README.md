@@ -2,13 +2,13 @@
 
 **Agree on the change, then build it.**
 
-CodeAccord is a lightweight, portable Agent Skill for evidence-based software changes. It gives coding agents one continuous workflow for product requirements, bug fixes, refactors, configuration changes, and other repository work:
+CodeAccord is a lightweight, portable Agent Skill for specification-driven software changes. It gives coding agents one continuous workflow for product requirements, bug fixes, refactors, configuration changes, and other repository work:
 
 ```text
-Inspect -> Challenge -> Accord -> Build -> Verify
+Explore [Inspect <-> Challenge] -> Accord -> Build -> Verify
 ```
 
-The agent investigates the real project, challenges unsupported assumptions, presents one concrete change brief, waits for one explicit agreement, then implements and verifies the agreed scope.
+The agent repeatedly inspects the real project and challenges assumptions without editing product files. Once the evidence and decisions converge, it presents one fixed, scannable Accord, waits for one explicit agreement, then implements and verifies that scope.
 
 [简体中文](README.zh-CN.md)
 
@@ -18,10 +18,10 @@ Coding agents often fail in two opposite ways: they start editing before the pro
 
 - one Skill;
 - one agreement gate;
-- no CLI or runtime dependency;
-- no mandatory planning files;
-- at most one durable change record when the work needs it;
-- no automatic sync or archive lifecycle.
+- no CLI or runtime dependency for the core workflow;
+- the conversation remains the primary working surface;
+- at most one temporary recovery checkpoint;
+- no accumulating change records, sync process, or archive lifecycle.
 
 The user owns the desired outcome. The agent still evaluates diagnoses and proposed implementations against source code, tests, logs, contracts, and project constraints.
 
@@ -29,13 +29,18 @@ The user owns the desired outcome. The agent still evaluates diagnoses and propo
 
 | Stage | Purpose |
 | --- | --- |
-| Inspect | Establish current behavior and evidence from the actual project. |
-| Challenge | Test assumptions, identify risks, and recommend the strongest approach. |
-| Accord | Present one reviewable scope and receive one explicit confirmation. |
+| Explore | Loop between inspection and challenge, answer questions, and converge on evidence and a recommendation without editing product files. |
+| Accord | Define the scope and acceptance checks, then receive one explicit confirmation. |
 | Build | Implement the approved code, tests, and necessary documentation. |
-| Verify | Check the result against acceptance criteria and report evidence. |
+| Verify | Check the result against the accord and report evidence. |
 
 CodeAccord distinguishes product changes, bug fixes, and mixed changes inside the same workflow. It does not require the user to repeatedly say “analyze first” or “do not edit yet.”
+
+## Fixed Accord
+
+Explore ends with the same compact structure every time: implementation readiness, change type, goal, current facts, implementation, change scope, compatibility and risks, acceptance checks, and open decisions. Small changes keep the headings but may use one sentence per section.
+
+`Ready after confirmation` means the user can approve and implementation can start immediately. `Blocked by decisions` names the remaining choices and cannot be approved as a complete implementation scope.
 
 ## Installation
 
@@ -78,30 +83,50 @@ CodeAccord normally stops once at the accord. A user can explicitly skip that se
 $codeaccord Investigate and fix this directly without a separate review step.
 ```
 
-The agent still investigates before editing.
+The agent still completes the read-only Explore loop and states the fixed Accord before editing, but it may continue without waiting for another reply.
 
-## Durable change records
+## Recovery checkpoint
 
-Simple work stays in the conversation. CodeAccord creates one durable record only when the change spans modules or sessions, affects contracts, data, deployment, or operations, contains several product decisions, or explicitly needs a saved plan.
-
-Unless a project defines another compatible location, records are stored at:
+The conversation remains the main interface. For work that may cross a context or session boundary, CodeAccord keeps one short recovery cache:
 
 ```text
-.codeaccord/changes/<change-name>.md
+.codeaccord/checkpoint.md
 ```
 
-CodeAccord does not modify ignore rules, commit, sync, or archive these records automatically.
+The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it first and then verifies the working tree. Completed checkpoints are removed instead of archived.
+
+CodeAccord 0.2 no longer creates `.codeaccord/changes/*.md`. Existing files are left untouched and are not loaded automatically.
+
+## Optional compaction hooks
+
+The core workflow does not require hooks. Optional examples under `integrations/` validate a checkpoint before manual compaction and inject it after compaction or session resume on Codex and Claude Code.
+
+These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard and reload path.
+
+The examples assume a project-local installation at `.agents/skills/codeaccord`. See [integration instructions](integrations/README.md).
 
 ## Repository layout
 
 ```text
 skills/codeaccord/
 ├── SKILL.md
-└── agents/
-    └── openai.yaml
+├── agents/
+│   └── openai.yaml
+└── scripts/
+    └── checkpoint_hook.py
+
+integrations/
+├── README.md
+├── claude-code/
+│   └── settings.json.example
+└── codex/
+    └── hooks.json.example
+
+tests/
+└── test_checkpoint_hook.py
 ```
 
-`SKILL.md` is the portable workflow. `agents/openai.yaml` is optional OpenAI/Codex interface metadata; tools that do not use it can ignore it.
+`SKILL.md` is the portable workflow. `agents/openai.yaml` is optional OpenAI/Codex interface metadata; tools that do not use it can ignore it. The script and hook examples are optional.
 
 ## License
 
