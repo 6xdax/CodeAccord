@@ -97,13 +97,15 @@ The conversation remains the main interface. For work that may cross a context o
 
 The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it first and then verifies the working tree. Completed checkpoints are removed instead of archived.
 
+Each checkpoint records a `workspace` and a `session`, so a later session can tell whether the checkpoint is its own. A checkpoint belonging to another session is surfaced as an ownership notice instead of being loaded as the current task, and it is not overwritten without the user's confirmation. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
+
 CodeAccord 0.2 no longer creates `.codeaccord/changes/*.md`. Existing files are left untouched and are not loaded automatically.
 
 ## Optional compaction hooks
 
 The core workflow does not require hooks. Optional examples under `integrations/` validate a checkpoint before manual compaction and inject it after compaction or session resume on Codex and Claude Code.
 
-These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard and reload path.
+These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard, a reload path, and an ownership check. The hooks never write the checkpoint.
 
 The examples assume a project-local installation at `.agents/skills/codeaccord`. See [integration instructions](integrations/README.md).
 

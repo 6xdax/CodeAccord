@@ -4,7 +4,7 @@ description: Explore, agree, implement, and verify software changes with a read-
 license: MIT
 metadata:
   author: CodeAccord contributors
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # CodeAccord
@@ -197,6 +197,15 @@ Do not wait for a mechanical `PreCompact` hook to summarize the conversation. A 
 
 Treat **Confirmed scope** as the merged current Accord. Keep unapproved proposed changes under **Unresolved** until the user confirms them. A compaction or resume must never promote an unresolved delta into confirmed scope.
 
+One checkpoint belongs to one workspace and one session. Record both ownership fields and keep them when you refresh the file:
+
+- `workspace`: the absolute project root;
+- `session`: the session id reported by the `SessionStart` hook, or the equivalent session identifier available in your environment.
+
+These fields are how a later session decides whether the checkpoint is its own. Because there is only one checkpoint per workspace, do not run two CodeAccord tasks in the same workspace at the same time; park one task or use a separate worktree.
+
+When a `SessionStart` or `PreCompact` hook reports that the checkpoint belongs to another session, do not adopt its scope and do not overwrite it until the user confirms. After the user confirms they are continuing that task, take ownership by updating `workspace` and `session` to the current values. When the hook reports no recorded owner, or a recorded workspace that does not match the checkpoint's location, treat the checkpoint as moved or copied and verify with the user before continuing. The hook never writes the file, so ownership is always yours to maintain.
+
 After compaction or session resumption, read the checkpoint before continuing. Then inspect repository status and relevant code because source and tests remain authoritative for implementation state. Treat the checkpoint as the latest confirmed product boundary; do not silently expand it from a generated compaction summary.
 
 Keep it concise, normally no more than 500–800 tokens. Store decisions and state, not raw transcripts, long evidence, source code, logs, or secrets. `Current state` contains only conclusions needed to resume the task; do not turn it into a chronological investigation or implementation log. Use this shape and omit empty bullets rather than adding more sections:
@@ -205,6 +214,8 @@ Keep it concise, normally no more than 500–800 tokens. Store decisions and sta
 ---
 status: exploring | approved | implementing | verifying
 updated: YYYY-MM-DDTHH:MM:SSZ
+workspace: /absolute/project/root
+session: <session id>
 ---
 
 # Goal
