@@ -4,7 +4,7 @@ description: Explore, agree, implement, and verify software changes with a read-
 license: MIT
 metadata:
   author: CodeAccord contributors
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # CodeAccord
@@ -42,7 +42,9 @@ During Explore:
 - distinguish confirmed facts, supported inferences, user decisions, and unresolved questions;
 - do not edit implementation files, tests, configuration, or product documentation.
 
-An interim Explore response may answer a question, report findings, reject a premise, or explain what evidence is still missing. Do not force an Accord into every response.
+An interim Explore response may answer a question, report findings, reject a premise, or explain what evidence is still missing. Keep it brief and proportional: state the new conclusion, current recommendation, and any decision still needed. Do not use the full Accord structure during Explore.
+
+When the evidence appears sufficient, present a concise recommended direction and ask whether the user wants to finalize it. Do not emit a full Accord merely because the agent believes Explore has converged. Wait for an explicit user signal such as accepting the direction, asking for the complete Accord, or authorizing direct implementation.
 
 Exit Explore only when all of these are true:
 
@@ -50,7 +52,8 @@ Exit Explore only when all of these are true:
 2. the intended outcome and important boundaries are clear;
 3. the implementation direction and affected scope are identified;
 4. acceptance can be checked through observable behavior or executable verification;
-5. every unresolved item is either non-blocking or presented as an explicit decision.
+5. every unresolved item is either non-blocking or presented as an explicit decision;
+6. the user has signaled that the direction is ready to be finalized, or has explicitly pre-authorized direct implementation.
 
 ## Classify the change
 
@@ -104,12 +107,12 @@ For bugs, locate the earliest point where the state becomes incorrect. Fix that 
 
 ## Form the accord
 
-Accord is the single, fixed exit from Explore. Render labels in the user's language, but preserve the following section order and meanings so readiness can be reviewed at a glance:
+The initial Accord is the fixed exit from Explore. Produce it only after the user signals that the explored direction is ready to finalize. Render labels in the user's language, but preserve the following section order and meanings so readiness can be reviewed at a glance:
 
 ```markdown
 ## Accord
 
-**Implementation readiness:** Ready after confirmation | Blocked by decisions
+**Implementation readiness:** Ready after confirmation | Pre-authorized | Blocked by decisions
 **Type:** Product change | Bug fix | Mixed change
 
 ### Goal
@@ -139,11 +142,38 @@ One sentence describing the intended result.
 - None; confirmation authorizes implementation.
 ```
 
-Use `Ready after confirmation` only when no decision blocks implementation. If a user-owned decision remains, use `Blocked by decisions`, list the exact choices under **Open decisions**, and do not ask the user to approve an incomplete implementation scope.
+Use `Ready after confirmation` when no decision blocks implementation but a separate approval is still required. Use `Pre-authorized` when the user already asked to proceed directly; state the complete Accord, then continue to Build without waiting for another reply. If a user-owned decision remains, use `Blocked by decisions`, list the exact choices under **Open decisions**, and do not ask the user to approve an incomplete implementation scope.
 
 Keep every heading even for small changes, but keep its content proportional; one sentence is enough where appropriate. **Current facts** contains only evidence that affects the implementation decision, not a chronological investigation log. Present one final recommendation rather than preserving rejected alternatives unless a real user decision remains.
 
-When confirmation is still required, end a ready Accord with one direct request to confirm it. When the user already waived the gate, state that the Accord is pre-authorized and continue to Build in the same turn. After confirmation, proceed directly to Build without generating a second plan. If the user changes a material boundary, return only that delta to the Explore loop, then issue a complete updated Accord.
+When confirmation is still required, end a ready Accord with one direct request to confirm it. After confirmation, proceed directly to Build without generating a second plan. Produce the initial full Accord only once unless the user explicitly asks for a consolidated restatement or the prior baseline cannot be recovered.
+
+## Update an accord
+
+After an initial Accord exists, discuss later changes through the same brief Explore responses. Once the user accepts the changed direction, output only this delta structure instead of repeating the full Accord:
+
+```markdown
+## Accord delta
+
+**Status:** Merge after confirmation | Pre-authorized | Blocked by decisions
+
+### Decision change
+- Previous:
+- New:
+
+### Scope impact
+- Added, removed, or changed components and behavior.
+
+### Acceptance changes
+- Added, removed, or revised completion checks.
+
+### Open decisions
+- None; confirmation merges this delta into the current Accord.
+```
+
+Omit unchanged goals, facts, scope, risks, and acceptance checks. Use `Merge after confirmation` when approval is still required, `Pre-authorized` when the user already authorized the change, and `Blocked by decisions` when implementation cannot continue.
+
+Before confirmation, keep a proposed delta under checkpoint **Unresolved** and do not overwrite the confirmed scope. After confirmation, merge it into the checkpoint's complete current state and remove it from **Unresolved**. During Build, pause for confirmation only when new evidence crosses an unapproved material boundary, and present only the delta. Reissue a full Accord only when the user explicitly requests it or no reliable baseline can be recovered.
 
 ## Recovery checkpoint
 
@@ -157,13 +187,15 @@ Use exactly `.codeaccord/checkpoint.md` at the project root. Never create per-ch
 
 Keep the checkpoint semantically current. Refresh it:
 
-1. immediately after the user confirms the accord;
+1. immediately after the user confirms the initial Accord or an Accord delta;
 2. after any approved material scope change;
 3. after an important implementation or verification milestone;
 4. before a long-running command, test suite, delegation, or other operation that may interrupt the turn;
 5. before compaction when the platform signals it or the remaining context indicates it is approaching.
 
 Do not wait for a mechanical `PreCompact` hook to summarize the conversation. A command hook cannot infer unrecorded decisions reliably. Platform hooks may validate and reload the file, but the active agent owns the semantic update.
+
+Treat **Confirmed scope** as the merged current Accord. Keep unapproved proposed changes under **Unresolved** until the user confirms them. A compaction or resume must never promote an unresolved delta into confirmed scope.
 
 After compaction or session resumption, read the checkpoint before continuing. Then inspect repository status and relevant code because source and tests remain authoritative for implementation state. Treat the checkpoint as the latest confirmed product boundary; do not silently expand it from a generated compaction summary.
 

@@ -38,9 +38,11 @@ CodeAccord distinguishes product changes, bug fixes, and mixed changes inside th
 
 ## Fixed Accord
 
-Explore ends with the same compact structure every time: implementation readiness, change type, goal, current facts, implementation, change scope, compatibility and risks, acceptance checks, and open decisions. Small changes keep the headings but may use one sentence per section.
+Explore uses short findings and recommendations while the direction is still being discussed. It does not end automatically when the agent thinks the evidence is sufficient. After the user accepts the direction or asks to finalize it, CodeAccord emits the full structure once: implementation readiness, change type, goal, current facts, implementation, change scope, compatibility and risks, acceptance checks, and open decisions. Small changes keep the headings but may use one sentence per section.
 
-`Ready after confirmation` means the user can approve and implementation can start immediately. `Blocked by decisions` names the remaining choices and cannot be approved as a complete implementation scope.
+`Ready after confirmation` means the user can approve and implementation can start immediately. `Pre-authorized` means the user already requested direct implementation. `Blocked by decisions` names the remaining choices and cannot be approved as a complete implementation scope.
+
+After the first Accord, changed decisions use an `Accord delta` containing only the previous and new decision, scope impact, acceptance changes, and open decisions. Unchanged sections are not repeated. Confirmed deltas merge into the recovery checkpoint; proposed deltas remain unresolved. A full restatement is generated only when the user asks for one or the prior baseline cannot be recovered.
 
 ## Installation
 
@@ -83,7 +85,7 @@ CodeAccord normally stops once at the accord. A user can explicitly skip that se
 $codeaccord Investigate and fix this directly without a separate review step.
 ```
 
-The agent still completes the read-only Explore loop and states the fixed Accord before editing, but it may continue without waiting for another reply.
+The agent still completes the read-only Explore loop and states one full `Pre-authorized` Accord before editing, but it may continue without waiting for another reply.
 
 ## Recovery checkpoint
 
