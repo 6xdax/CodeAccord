@@ -46,6 +46,24 @@ After the first Accord, changed decisions use an `Accord delta` containing only 
 
 ## Installation
 
+### Install with npx
+
+The [`skills`](https://github.com/vercel-labs/skills) CLI installs CodeAccord into the skill directory of each coding agent it detects, and records the source in a lock file:
+
+```bash
+npx skills add 6xdax/CodeAccord      # this project
+npx skills add -g 6xdax/CodeAccord   # every project for this user
+```
+
+```bash
+npx skills update                    # update project skills
+npx skills update -g                 # update global skills
+```
+
+`npx skills update` refreshes installed skills from the repository they came from, so a new CodeAccord revision reaches an existing installation without a manual copy. Add `-y` to skip the scope prompt, or name the skill with `npx skills update codeaccord` to update only this one.
+
+### Install by copying
+
 Copy the Skill directory into a Skill location supported by your coding agent.
 
 Personal Codex installation:

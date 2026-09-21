@@ -46,6 +46,24 @@ Explore 仍在讨论方向时只输出简短的发现和建议。即使 Agent �
 
 ## 安装
 
+### 用 npx 安装
+
+[`skills`](https://github.com/vercel-labs/skills) 命令行工具会把 CodeAccord 安装到本机检测到的各个 Agent 的 Skill 目录，并在 lock 文件中记录来源：
+
+```bash
+npx skills add 6xdax/CodeAccord      # 安装到当前项目
+npx skills add -g 6xdax/CodeAccord   # 安装到当前用户的所有项目
+```
+
+```bash
+npx skills update                    # 更新项目级 Skill
+npx skills update -g                 # 更新用户级 Skill
+```
+
+`npx skills update` 会从安装时的来源仓库刷新已安装的 Skill，因此新版本不需要手动复制。加 `-y` 可跳过作用域询问，也可以用 `npx skills update codeaccord` 只更新这一个 Skill。
+
+### 手动复制安装
+
 将 Skill 目录复制到编码 Agent 支持的 Skill 路径。
 
 Codex 用户级安装：
