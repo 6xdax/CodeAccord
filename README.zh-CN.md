@@ -46,6 +46,12 @@ Explore 仍在讨论方向时只输出简短的发现和建议。即使 Agent �
 
 ## 安装
 
+### 将提示词发送给你的 AI 安装
+
+将下面这句话复制发送给你的编码 Agent，Agent 会自动完成安装：
+
+> 请根据 https://github.com/6xdax/CodeAccord，安装 CodeAccord skill，安装到当前项目的 `.agents/skills/` 目录。
+
 ### 用 npx 安装
 
 [`skills`](https://github.com/vercel-labs/skills) 命令行工具会把 CodeAccord 安装到本机检测到的各个 Agent 的 Skill 目录，并在 lock 文件中记录来源：
@@ -113,17 +119,17 @@ $codeaccord 调查清楚后直接修复，不需要单独确认方案。
 .codeaccord/checkpoint.md
 ```
 
-Agent 会在方案确认后、范围或进度发生关键变化后、长时间操作前以及预计即将压缩上下文前更新它。`Current state` 只记录恢复调查、实施或验证所必需的结论，不记录活动流水。上下文压缩或恢复会话后，Agent 先读取 checkpoint，再核对工作区。任务完成后直接删除，不归档。
+Agent 会在方案确认后、范围或进度发生关键变化后、长时间操作前以及预计即将压缩上下文前更新它。确认 Accord 或 delta 会形成落盘屏障：checkpoint 写入成功前不得修改产品文件。`Current state` 只记录恢复调查、实施或验证所必需的结论，不记录活动流水。上下文压缩或恢复会话后，Agent 先读取 checkpoint，再与 Git HEAD、状态和当前源码对账，刷新过期状态后才能继续修改。任务完成后直接删除，不归档。
 
-checkpoint 会记录 `workspace` 和 `session`，让后续会话判断它是否属于自己。属于其他会话的 checkpoint 只会以归属提示出现，不会被当作当前任务注入，也不会在未经用户确认时被覆盖。每个工作区只有一份 checkpoint，同一工作区并发处理两个任务应改用独立 worktree。
+checkpoint 会记录 `workspace`、`session`、回复语言、Accord revision、Git HEAD、工作区指纹和最近一次刷新原因。工作区指纹覆盖暂存修改、未暂存的已跟踪修改和未跟踪内容，但不会保存实际 diff。属于其他会话的 checkpoint 只会以归属提示出现，不会被当作当前任务注入，也不会在未经用户确认时被覆盖。每个工作区只有一份 checkpoint，同一工作区并发处理两个任务应改用独立 worktree。
 
 CodeAccord 0.2 不再创建 `.codeaccord/changes/*.md`。已有文件保持不动，也不会被自动加载。
 
 ## 可选的上下文压缩 Hook
 
-核心流程不依赖 Hook。`integrations/` 中提供 Codex 和 Claude Code 的可选示例，用于在手动压缩前检查 checkpoint，并在压缩或恢复后把 checkpoint 重新注入上下文。
+核心流程不依赖 Hook。`integrations/` 中提供 Codex 和 Claude Code 的可选示例，用于在压缩前检查 checkpoint 的结构、归属和 Git 新鲜度，并在压缩或恢复后把 checkpoint 重新注入上下文。
 
-Hook 不负责总结 transcript。命令 Hook 无法可靠推断 Agent 尚未保存的决策，而且 transcript 格式不是稳定契约。因此，Skill 要求 Agent 主动更新语义内容，Hook 只提供结构检查、恢复入口和归属判断。Hook 不会写入 checkpoint。
+Hook 不负责总结 transcript。命令 Hook 无法可靠推断 Agent 尚未保存的决策，而且 transcript 格式不是稳定契约。因此，Skill 要求 Agent 主动更新语义内容，Hook 只提供结构检查、恢复入口、归属判断和工作区过期检测。stale checkpoint 会阻止手动压缩；自动压缩继续执行，但会警告并要求恢复后先完成对账。Hook 不会写入 checkpoint。
 
 示例默认 Skill 以项目级方式安装在 `.agents/skills/codeaccord`。安装方法见[集成说明](integrations/README.md)。
 

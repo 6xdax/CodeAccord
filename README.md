@@ -46,6 +46,12 @@ After the first Accord, changed decisions use an `Accord delta` containing only 
 
 ## Installation
 
+### Send to your AI
+
+Copy and send the following to your coding agent, and it will handle the installation:
+
+> Please install the CodeAccord skill from https://github.com/6xdax/CodeAccord into `.agents/skills/` of this project.
+
 ### Install with npx
 
 The [`skills`](https://github.com/vercel-labs/skills) CLI installs CodeAccord into the skill directory of each coding agent it detects, and records the source in a lock file:
@@ -113,17 +119,17 @@ The conversation remains the main interface. For work that may cross a context o
 .codeaccord/checkpoint.md
 ```
 
-The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it first and then verifies the working tree. Completed checkpoints are removed instead of archived.
+The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. A confirmed Accord or delta is a persistence barrier: the checkpoint write must succeed before product files are edited. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it, reconciles it with Git HEAD/status and current source, and refreshes stale state before editing. Completed checkpoints are removed instead of archived.
 
-Each checkpoint records a `workspace` and a `session`, so a later session can tell whether the checkpoint is its own. A checkpoint belonging to another session is surfaced as an ownership notice instead of being loaded as the current task, and it is not overwritten without the user's confirmation. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
+Each checkpoint records `workspace`, `session`, response language, Accord revision, Git HEAD, a worktree fingerprint, and the reason for its latest refresh. The fingerprint covers staged changes, unstaged tracked changes, and untracked contents without storing the diff itself. A checkpoint belonging to another session is surfaced as an ownership notice instead of being loaded as the current task, and it is not overwritten without the user's confirmation. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
 
 CodeAccord 0.2 no longer creates `.codeaccord/changes/*.md`. Existing files are left untouched and are not loaded automatically.
 
 ## Optional compaction hooks
 
-The core workflow does not require hooks. Optional examples under `integrations/` validate a checkpoint before manual compaction and inject it after compaction or session resume on Codex and Claude Code.
+The core workflow does not require hooks. Optional examples under `integrations/` validate checkpoint structure, ownership, and Git freshness before compaction, and inject it after compaction or session resume on Codex and Claude Code.
 
-These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard, a reload path, and an ownership check. The hooks never write the checkpoint.
+These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard, a reload path, an ownership check, and stale-worktree detection. A stale checkpoint blocks manual compaction; automatic compaction continues with a warning and a mandatory recovery barrier. The hooks never write the checkpoint.
 
 The examples assume a project-local installation at `.agents/skills/codeaccord`. See [integration instructions](integrations/README.md).
 

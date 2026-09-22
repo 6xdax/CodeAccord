@@ -1,7 +1,7 @@
 interface:
   display_name: "CodeAccord"
   short_description: "Explore, agree, implement, verify, and recover changes"
-  default_prompt: "Use $codeaccord to explore this change through brief read-only inspect-and-challenge updates, wait for the user to finalize the direction before presenting one full Accord, use Accord deltas for later changes, implement the confirmed scope, verify the result, and keep one merged recovery checkpoint when needed."
+  default_prompt: "Use $codeaccord to explore this change through brief read-only inspect-and-challenge updates, wait for the user to finalize the direction before presenting one full Accord, use Accord deltas for later changes, persist every confirmed Accord or delta before product edits, reconcile the checkpoint with Git after compaction, implement only the confirmed scope, and verify the result."
 
 policy:
   allow_implicit_invocation: true

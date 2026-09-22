@@ -9,7 +9,7 @@
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/.agents/skills/codeaccord/scripts/checkpoint_hook.py\" codex",
             "statusMessage": "Checking CodeAccord checkpoint",
-            "timeout": 5
+            "timeout": 15
           }
         ]
       }
@@ -23,7 +23,7 @@
             "command": "python3 \"$(git rev-parse --show-toplevel)/.agents/skills/codeaccord/scripts/checkpoint_hook.py\" codex",
             "statusMessage": "Loading CodeAccord checkpoint",
             "additionalContextLimit": 1500,
-            "timeout": 5
+            "timeout": 15
           }
         ]
       }

@@ -4,7 +4,7 @@ description: Explore, agree, implement, and verify software changes with a read-
 license: MIT
 metadata:
   author: CodeAccord contributors
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # CodeAccord
@@ -76,6 +76,8 @@ The only file CodeAccord may create or update before accord is `.codeaccord/chec
 The user may waive waiting at the separate agreement gate by explicitly asking to proceed immediately, saying no review is needed, or having already confirmed the same concrete scope earlier in the conversation. Even then, complete enough Explore to avoid an unsupported assumption and state the fixed Accord before Build; continue without waiting for another reply.
 
 Answers to discovery questions are decisions, not implementation authorization. Once the user explicitly confirms the complete brief with language such as “approved,” “go ahead,” or an equivalent response in their language, treat the whole stated scope as authorized.
+
+Confirmation creates a persistence barrier. Immediately merge the authorized Accord or delta into `.codeaccord/checkpoint.md` and verify that the write succeeded before editing implementation files, tests, configuration, or product documentation. If the checkpoint update fails, remain at the agreement boundary and do not start Build. A message saying that the checkpoint will be updated does not satisfy this barrier; the file must actually be current first.
 
 Do not ask again for routine implementation choices inside the accord. Pause only when evidence requires a material change to product behavior, public contracts, data migration, deployment behavior, or another boundary the user did not approve. Present and confirm only that delta.
 
@@ -173,7 +175,7 @@ After an initial Accord exists, discuss later changes through the same brief Exp
 
 Omit unchanged goals, facts, scope, risks, and acceptance checks. Use `Merge after confirmation` when approval is still required, `Pre-authorized` when the user already authorized the change, and `Blocked by decisions` when implementation cannot continue.
 
-Before confirmation, keep a proposed delta under checkpoint **Unresolved** and do not overwrite the confirmed scope. After confirmation, merge it into the checkpoint's complete current state and remove it from **Unresolved**. During Build, pause for confirmation only when new evidence crosses an unapproved material boundary, and present only the delta. Reissue a full Accord only when the user explicitly requests it or no reliable baseline can be recovered.
+Before confirmation, keep a proposed delta under checkpoint **Unresolved** and do not overwrite the confirmed scope. **Confirmed scope contains only behavior authorized for Build**; a user preference, tentative agreement, or answer to an Explore question is not enough. After confirmation, merge the delta into the checkpoint's complete current state, increment `accord_revision`, remove it from **Unresolved**, and cross the persistence barrier before Build resumes. During Build, pause for confirmation only when new evidence crosses an unapproved material boundary, and present only the delta. Reissue a full Accord only when the user explicitly requests it or no reliable baseline can be recovered.
 
 ## Recovery checkpoint
 
@@ -193,9 +195,18 @@ Keep the checkpoint semantically current. Refresh it:
 4. before a long-running command, test suite, delegation, or other operation that may interrupt the turn;
 5. before compaction when the platform signals it or the remaining context indicates it is approaching.
 
+Treat each refresh as an actual persistence operation: write the file, read or validate the result, then continue. Because automatic compaction may arrive without warning, also refresh after each completed implementation batch whose conclusions are needed to resume safely; do not leave `Current state` saying that no code has changed after product files have already been edited.
+
 Do not wait for a mechanical `PreCompact` hook to summarize the conversation. A command hook cannot infer unrecorded decisions reliably. Platform hooks may validate and reload the file, but the active agent owns the semantic update.
 
 Treat **Confirmed scope** as the merged current Accord. Keep unapproved proposed changes under **Unresolved** until the user confirms them. A compaction or resume must never promote an unresolved delta into confirmed scope.
+
+Keep phase fields self-consistent:
+
+- `exploring` may contain candidate changes under Unresolved but does not authorize Build;
+- `approved` means a complete Accord is confirmed and persisted but implementation has not started;
+- `implementing` and `verifying` require a positive confirmed `accord_revision` and no unresolved decision that would materially change the authorized behavior;
+- when a user-owned decision blocks progress, keep the current confirmed scope unchanged and record the proposed delta under Unresolved.
 
 One checkpoint belongs to one workspace and one session. Record both ownership fields and keep them when you refresh the file:
 
@@ -206,7 +217,15 @@ These fields are how a later session decides whether the checkpoint is its own. 
 
 When a `SessionStart` or `PreCompact` hook reports that the checkpoint belongs to another session, do not adopt its scope and do not overwrite it until the user confirms. After the user confirms they are continuing that task, take ownership by updating `workspace` and `session` to the current values. When the hook reports no recorded owner, or a recorded workspace that does not match the checkpoint's location, treat the checkpoint as moved or copied and verify with the user before continuing. The hook never writes the file, so ownership is always yours to maintain.
 
-After compaction or session resumption, read the checkpoint before continuing. Then inspect repository status and relevant code because source and tests remain authoritative for implementation state. Treat the checkpoint as the latest confirmed product boundary; do not silently expand it from a generated compaction summary.
+After compaction or session resumption, cross a recovery barrier before continuing:
+
+1. read the checkpoint from disk;
+2. inspect Git HEAD, status, and relevant current source;
+3. reconcile any difference between the checkpoint and the workspace;
+4. state the recovered goal, phase, and next action in the recorded user language;
+5. refresh the checkpoint when it is legacy, stale, or materially incomplete.
+
+Do not edit implementation files, tests, configuration, or product documentation until this barrier is complete. Source and tests remain authoritative for implementation state, while Confirmed scope remains the product boundary. Do not silently expand scope from a generated compaction summary.
 
 Keep it concise, normally no more than 500–800 tokens. Store decisions and state, not raw transcripts, long evidence, source code, logs, or secrets. `Current state` contains only conclusions needed to resume the task; do not turn it into a chronological investigation or implementation log. Use this shape and omit empty bullets rather than adding more sections:
 
@@ -216,6 +235,12 @@ status: exploring | approved | implementing | verifying
 updated: YYYY-MM-DDTHH:MM:SSZ
 workspace: /absolute/project/root
 session: <session id>
+checkpoint_version: 1
+language: <BCP-47 language tag>
+accord_revision: <positive integer after the initial Accord is confirmed>
+git_head: <current Git commit>
+worktree_fingerprint: <hash from checkpoint_hook.py snapshot>
+checkpoint_reason: accord_confirmed | delta_confirmed | milestone | precompact
 ---
 
 # Goal
@@ -233,17 +258,26 @@ session: <session id>
 ## Unresolved
 ```
 
+For a Git workspace, obtain `git_head` and `worktree_fingerprint` from the bundled read-only helper and copy both values into the frontmatter after the semantic content is current:
+
+```bash
+python3 .agents/skills/codeaccord/scripts/checkpoint_hook.py snapshot "$(git rev-parse --show-toplevel)"
+```
+
+The fingerprint covers HEAD, staged changes, unstaged tracked changes, and untracked file contents while excluding `.codeaccord/`; only the hash is stored. If Git freshness is unavailable, record `unavailable` and reconcile the workspace manually after recovery. Hooks never write these fields.
+
 When verification is complete and the final result has been reported, remove the checkpoint. If work remains incomplete or verification is blocked, keep it updated for recovery. Do not archive it automatically.
 
 ## Build
 
 After accord:
 
-1. Implement the entire approved scope and preserve unrelated user changes.
-2. Update affected contracts, callers, configuration, migrations, tests, and documentation together.
-3. Follow project-local instructions and established patterns.
-4. Keep working through ordinary implementation failures without reopening the accord.
-5. Remove dead code introduced or made obsolete by this change when it is safely within scope.
+1. Cross the confirmation persistence barrier before the first product edit.
+2. Implement the entire approved scope and preserve unrelated user changes.
+3. Update affected contracts, callers, configuration, migrations, tests, and documentation together.
+4. Follow project-local instructions and established patterns.
+5. Keep working through ordinary implementation failures without reopening the accord.
+6. Remove dead code introduced or made obsolete by this change when it is safely within scope.
 
 Do not create an OpenSpec change or another planning system unless the user explicitly requests it.
 
@@ -258,6 +292,7 @@ Before declaring completion:
 - check affected contracts and callers;
 - report commands actually run and their results;
 - disclose remaining limitations, skipped checks, or unresolved risks;
+- compare Confirmed scope and every acceptance check with the actual changed-file list, and explain any file that is not an obvious part of the authorized scope;
 - update the checkpoint after major verification results and remove it only after the work is complete.
 
 Lead the final response with the outcome. Explain what changed, why it changed, how it was verified, and any material limitations.
