@@ -4,7 +4,7 @@ description: Explore, agree, implement, and verify software changes with a read-
 license: MIT
 metadata:
   author: CodeAccord contributors
-  version: "0.4.1"
+  version: "0.5.0"
 ---
 
 # CodeAccord
@@ -223,7 +223,7 @@ Treat each refresh as an actual persistence operation: write the file, read or v
 
 When a checkpoint already exists for this workspace and session, a quick-path edit still changes the worktree and invalidates its stored fingerprint. Update **Current state** and refresh `git_head` and `worktree_fingerprint` before finishing, rather than leaving a stale checkpoint behind.
 
-Do not wait for a mechanical `PreCompact` hook to summarize the conversation. A command hook cannot infer unrecorded decisions reliably. Platform hooks may validate and reload the file, but the active agent owns the semantic update.
+Do not rely on a mechanical hook or a generated compaction summary to record decisions. A command cannot infer unrecorded decisions reliably; the active agent owns the semantic update and refreshes the file before compaction or interruption.
 
 Treat **Confirmed scope** as the merged current Accord. Keep unapproved proposed changes under **Unresolved** until the user confirms them. A compaction or resume must never promote an unresolved delta into confirmed scope.
 
@@ -237,11 +237,11 @@ Keep phase fields self-consistent:
 One checkpoint belongs to one workspace and one session. Record both ownership fields and keep them when you refresh the file:
 
 - `workspace`: the absolute project root;
-- `session`: the session id reported by the `SessionStart` hook, or the equivalent session identifier available in your environment.
+- `session`: the session identifier available in your environment; record `unknown` when none is available.
 
 These fields are how a later session decides whether the checkpoint is its own. Because there is only one checkpoint per workspace, do not run two CodeAccord tasks in the same workspace at the same time; park one task or use a separate worktree.
 
-When a `SessionStart` or `PreCompact` hook reports that the checkpoint belongs to another session, do not adopt its scope and do not overwrite it until the user confirms. After the user confirms they are continuing that task, take ownership by updating `workspace` and `session` to the current values. When the hook reports no recorded owner, or a recorded workspace that does not match the checkpoint's location, treat the checkpoint as moved or copied and verify with the user before continuing. The hook never writes the file, so ownership is always yours to maintain.
+When the checkpoint records a session or workspace that does not match the current one, do not adopt its scope and do not overwrite it until the user confirms. After the user confirms they are continuing that task, take ownership by updating `workspace` and `session` to the current values. When no owner is recorded, or the recorded workspace does not match the checkpoint's location, treat the checkpoint as moved or copied and verify with the user before continuing. The snapshot helper never writes the file, so ownership is always yours to maintain.
 
 After compaction or session resumption, cross a recovery barrier before continuing:
 
@@ -265,7 +265,7 @@ checkpoint_version: 1
 language: <BCP-47 language tag>
 accord_revision: <positive integer after the initial Accord is confirmed>
 git_head: <current Git commit>
-worktree_fingerprint: <hash from checkpoint_hook.py snapshot>
+worktree_fingerprint: <hash from checkpoint_snapshot.py>
 checkpoint_reason: accord_confirmed | delta_confirmed | milestone | precompact
 ---
 
@@ -287,10 +287,10 @@ checkpoint_reason: accord_confirmed | delta_confirmed | milestone | precompact
 For a Git workspace, obtain `git_head` and `worktree_fingerprint` from the bundled read-only helper and copy both values into the frontmatter after the semantic content is current:
 
 ```bash
-python3 .agents/skills/codeaccord/scripts/checkpoint_hook.py snapshot "$(git rev-parse --show-toplevel)"
+python3 .agents/skills/codeaccord/scripts/checkpoint_snapshot.py "$(git rev-parse --show-toplevel)"
 ```
 
-The fingerprint covers HEAD, staged changes, unstaged tracked changes, and untracked file contents while excluding `.codeaccord/`; only the hash is stored. If Git freshness is unavailable, record `unavailable` and reconcile the workspace manually after recovery. Hooks never write these fields.
+The fingerprint covers HEAD, staged changes, unstaged tracked changes, and untracked file contents while excluding `.codeaccord/`; only the hash is stored. If Git freshness is unavailable, record `unavailable` and reconcile the workspace manually after recovery. The helper never writes these fields.
 
 When verification is complete and the final result has been reported, remove the checkpoint. If work remains incomplete or verification is blocked, keep it updated for recovery. Do not archive it automatically.
 

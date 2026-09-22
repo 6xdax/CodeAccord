@@ -128,17 +128,9 @@ The conversation remains the main interface. For work that may cross a context o
 
 The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. On the full path, a confirmed Accord or delta is a persistence barrier: the checkpoint write must succeed before product files are edited. The quick path creates no checkpoint; when one already exists for the session, it is refreshed afterwards rather than left stale. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it, reconciles it with Git HEAD/status and current source, and refreshes stale state before editing. Completed checkpoints are removed instead of archived.
 
-Each checkpoint records `workspace`, `session`, response language, Accord revision, Git HEAD, a worktree fingerprint, and the reason for its latest refresh. The fingerprint covers staged changes, unstaged tracked changes, and untracked contents without storing the diff itself. A checkpoint belonging to another session is surfaced as an ownership notice instead of being loaded as the current task, and it is not overwritten without the user's confirmation. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
+Each checkpoint records `workspace`, `session`, response language, Accord revision, Git HEAD, a worktree fingerprint, and the reason for its latest refresh. The fingerprint covers staged changes, unstaged tracked changes, and untracked contents without storing the diff itself. A checkpoint recorded for another session is treated as foreign: the agent confirms with the user before adopting or overwriting it. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
 
 CodeAccord 0.2 no longer creates `.codeaccord/changes/*.md`. Existing files are left untouched and are not loaded automatically.
-
-## Optional compaction hooks
-
-The core workflow does not require hooks. Optional examples under `integrations/` validate checkpoint structure, ownership, and Git freshness before compaction, and inject it after compaction or session resume on Codex and Claude Code.
-
-These hooks do not summarize transcripts. Command hooks cannot reliably infer decisions that the active agent failed to save, and transcript formats are not stable contracts. The Skill therefore requires proactive semantic updates; hooks provide a recovery guard, a reload path, an ownership check, and stale-worktree detection. A stale checkpoint blocks manual compaction; automatic compaction continues with a warning and a mandatory recovery barrier. The hooks never write the checkpoint.
-
-The examples assume a project-local installation at `.agents/skills/codeaccord`. See [integration instructions](integrations/README.md).
 
 ## Repository layout
 
@@ -148,20 +140,13 @@ skills/codeaccord/
 ├── agents/
 │   └── openai.yaml
 └── scripts/
-    └── checkpoint_hook.py
-
-integrations/
-├── README.md
-├── claude-code/
-│   └── settings.json.example
-└── codex/
-    └── hooks.json.example
+    └── checkpoint_snapshot.py
 
 tests/
-└── test_checkpoint_hook.py
+└── test_checkpoint_snapshot.py
 ```
 
-`SKILL.md` is the portable workflow. `agents/openai.yaml` is optional OpenAI/Codex interface metadata; tools that do not use it can ignore it. The script and hook examples are optional.
+`SKILL.md` is the portable workflow. `agents/openai.yaml` is optional OpenAI/Codex interface metadata; tools that do not use it can ignore it. The snapshot script is optional.
 
 ## License
 
