@@ -8,7 +8,7 @@ CodeAccord is a lightweight, portable Agent Skill for specification-driven softw
 Explore [Inspect <-> Challenge] -> Accord -> Build -> Verify
 ```
 
-The agent repeatedly inspects the real project and challenges assumptions without editing product files. Once the evidence and decisions converge, it presents one fixed, scannable Accord, waits for one explicit agreement, then implements and verifies that scope.
+The agent repeatedly inspects the real project and challenges assumptions without editing product files. Once the evidence and decisions converge, it presents one fixed, scannable Accord — or a brief description for a small quick-path change — waits for one explicit agreement, and then implements and verifies that scope.
 
 [简体中文](README.zh-CN.md)
 
@@ -18,6 +18,7 @@ Coding agents often fail in two opposite ways: they start editing before the pro
 
 - one Skill;
 - one agreement gate;
+- a quick path that skips the checkpoint and the full Accord for a small self-contained change;
 - no CLI or runtime dependency for the core workflow;
 - the conversation remains the primary working surface;
 - at most one temporary recovery checkpoint;
@@ -30,7 +31,7 @@ The user owns the desired outcome. The agent still evaluates diagnoses and propo
 | Stage | Purpose |
 | --- | --- |
 | Explore | Loop between inspection and challenge, answer questions, and converge on evidence and a recommendation without editing product files. |
-| Accord | Define the scope and acceptance checks, then receive one explicit confirmation. |
+| Accord | Define the scope and acceptance checks — or, for a small quick-path change, describe it briefly — then receive one explicit confirmation. |
 | Build | Implement the approved code, tests, and necessary documentation. |
 | Verify | Check the result against the accord and report evidence. |
 
@@ -38,11 +39,17 @@ CodeAccord distinguishes product changes, bug fixes, and mixed changes inside th
 
 ## Fixed Accord
 
-Explore uses short findings and recommendations while the direction is still being discussed. It does not end automatically when the agent thinks the evidence is sufficient. After the user accepts the direction or asks to finalize it, CodeAccord emits the full structure once: implementation readiness, change type, goal, current facts, implementation, change scope, compatibility and risks, acceptance checks, and open decisions. Small changes keep the headings but may use one sentence per section.
+Explore uses short findings and recommendations while the direction is still being discussed. It does not end automatically when the agent thinks the evidence is sufficient. After the user accepts the direction or asks to finalize it, CodeAccord emits the full structure once: implementation readiness, change type, goal, current facts, implementation, change scope, compatibility and risks, acceptance checks, and open decisions. Within the full path a small scope keeps the headings but may use one sentence per section.
 
 `Ready after confirmation` means the user can approve and implementation can start immediately. `Pre-authorized` means the user already requested direct implementation. `Blocked by decisions` names the remaining choices and cannot be approved as a complete implementation scope.
 
 After the first Accord, changed decisions use an `Accord delta` containing only the previous and new decision, scope impact, acceptance changes, and open decisions. Unchanged sections are not repeated. Confirmed deltas merge into the recovery checkpoint; proposed deltas remain unresolved. A full restatement is generated only when the user asks for one or the prior baseline cannot be recovered.
+
+## Quick path for small changes
+
+A change uses the quick path only when every one of these holds: the goal is unambiguous, no product or compatibility decision is open, the edit touches one file or one call site and at most two files, it alters no public interface, configuration format, schema, persisted format, concurrency behavior, or deployment behavior, it is reversible, and it can be verified in the current context. A bug fix also needs an established root cause rather than an open investigation.
+
+On the quick path the agent writes no checkpoint and emits no Accord. It states in one to three sentences which file and location changes, what the behavior becomes, and how it will be verified, then waits for a single confirmation. After that it edits and runs the most relevant focused check. Everything else — including several small edits that share one decision, any behavior another component depends on, or verification this context cannot perform — uses the full path.
 
 ## Installation
 
@@ -109,7 +116,7 @@ CodeAccord normally stops once at the accord. A user can explicitly skip that se
 $codeaccord Investigate and fix this directly without a separate review step.
 ```
 
-The agent still completes the read-only Explore loop and states one full `Pre-authorized` Accord before editing, but it may continue without waiting for another reply.
+The agent still completes the read-only Explore loop and states one full `Pre-authorized` Accord before editing, but it may continue without waiting for another reply. A small change that meets the quick-path conditions states the brief description instead.
 
 ## Recovery checkpoint
 
@@ -119,7 +126,7 @@ The conversation remains the main interface. For work that may cross a context o
 .codeaccord/checkpoint.md
 ```
 
-The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. A confirmed Accord or delta is a persistence barrier: the checkpoint write must succeed before product files are edited. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it, reconciles it with Git HEAD/status and current source, and refreshes stale state before editing. Completed checkpoints are removed instead of archived.
+The agent updates it after agreement, after material changes or milestones, before long operations, and before expected context compaction. On the full path, a confirmed Accord or delta is a persistence barrier: the checkpoint write must succeed before product files are edited. The quick path creates no checkpoint; when one already exists for the session, it is refreshed afterwards rather than left stale. `Current state` records only the conclusions needed to resume inspection, implementation, or verification; it is not an activity log. After compaction or resume, the agent reads it, reconciles it with Git HEAD/status and current source, and refreshes stale state before editing. Completed checkpoints are removed instead of archived.
 
 Each checkpoint records `workspace`, `session`, response language, Accord revision, Git HEAD, a worktree fingerprint, and the reason for its latest refresh. The fingerprint covers staged changes, unstaged tracked changes, and untracked contents without storing the diff itself. A checkpoint belonging to another session is surfaced as an ownership notice instead of being loaded as the current task, and it is not overwritten without the user's confirmation. There is one checkpoint per workspace, so two concurrent tasks in the same workspace should use separate worktrees.
 

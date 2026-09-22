@@ -4,7 +4,7 @@ description: Explore, agree, implement, and verify software changes with a read-
 license: MIT
 metadata:
   author: CodeAccord contributors
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # CodeAccord
@@ -29,6 +29,8 @@ Explore [Inspect <-> Challenge] -> Accord -> Build -> Verify
 - **Verify:** Check the delivered behavior against the accord and report evidence.
 
 Do not split this lifecycle across separate planning and implementation skills. Infer the current stage from the conversation and continue from the latest confirmed accord.
+
+The Accord stage has two depths. A non-trivial change produces a full Accord; a small self-contained change that meets every quick-path condition uses a brief confirmed description instead. See **Choose the response path**.
 
 ## Explore loop
 
@@ -65,19 +67,38 @@ Choose the mode from evidence rather than keywords:
 
 When classification is uncertain, investigate first. Ask the user only when the distinction changes the desired outcome or compatibility contract.
 
+## Choose the response path
+
+Choose the path from evidence before writing a response. Both paths keep the same read-only Explore discipline.
+
+**Quick path** — use only when every condition holds:
+
+- the goal is unambiguous and no product, compatibility, or data decision is open;
+- the change touches one file or one call site, at most two files;
+- it does not alter a public interface, configuration format, schema, persisted format, concurrency behavior, or deployment behavior;
+- it is reversible and non-destructive;
+- it can be implemented and verified within the current context;
+- for a bug, the root cause is already established rather than still being investigated.
+
+On the quick path, do not write a checkpoint and do not emit an Accord or Accord delta. Before editing, state in one to three sentences which file and location changes, what the behavior becomes, and how it will be verified, then wait for one confirmation. After that confirmation, edit and run the most relevant focused check. When the user has already pre-authorized direct implementation, state the same brief description and continue without waiting for another reply.
+
+**Full path** — use for everything else, and whenever the path itself is uncertain. Run the complete lifecycle, the full Accord, the recovery checkpoint, and the persistence barrier below.
+
+Prefer the full path when several small edits share one decision, when a caller or other component depends on the behavior, or when verification needs a tool or environment this context cannot provide.
+
 ## Authorization boundary
 
-A request such as “add this feature,” “help me implement this,” or “fix this bug” starts the lifecycle. It does not skip the accord by itself.
+A request such as “add this feature,” “help me implement this,” or “fix this bug” starts the lifecycle. It does not skip the confirmation gate by itself; on the quick path that gate is the brief description rather than a full Accord.
 
 Before accord, use read-only investigation against product code, configuration, tests, logs, history, and documentation. Do not edit implementation files, tests, configuration, or product documentation.
 
-The only file CodeAccord may create or update before accord is `.codeaccord/checkpoint.md` under **Recovery checkpoint**. It is temporary recovery state and does not authorize implementation.
+The only file CodeAccord may create or update before accord is `.codeaccord/checkpoint.md` under **Recovery checkpoint**. It is temporary recovery state and does not authorize implementation. The full path maintains it; the quick path does not create it.
 
-The user may waive waiting at the separate agreement gate by explicitly asking to proceed immediately, saying no review is needed, or having already confirmed the same concrete scope earlier in the conversation. Even then, complete enough Explore to avoid an unsupported assumption and state the fixed Accord before Build; continue without waiting for another reply.
+The user may waive waiting at the separate agreement gate by explicitly asking to proceed immediately, saying no review is needed, or having already confirmed the same concrete scope earlier in the conversation. Even then, complete enough Explore to avoid an unsupported assumption and state the fixed Accord — or the quick-path description — before Build; continue without waiting for another reply.
 
 Answers to discovery questions are decisions, not implementation authorization. Once the user explicitly confirms the complete brief with language such as “approved,” “go ahead,” or an equivalent response in their language, treat the whole stated scope as authorized.
 
-Confirmation creates a persistence barrier. Immediately merge the authorized Accord or delta into `.codeaccord/checkpoint.md` and verify that the write succeeded before editing implementation files, tests, configuration, or product documentation. If the checkpoint update fails, remain at the agreement boundary and do not start Build. A message saying that the checkpoint will be updated does not satisfy this barrier; the file must actually be current first.
+On the full path, confirmation creates a persistence barrier. Immediately merge the authorized Accord or delta into `.codeaccord/checkpoint.md` and verify that the write succeeded before editing implementation files, tests, configuration, or product documentation. If the checkpoint update fails, remain at the agreement boundary and do not start Build. A message saying that the checkpoint will be updated does not satisfy this barrier; the file must actually be current first. Because the quick path creates no checkpoint, its confirmation authorizes the described edit directly.
 
 Do not ask again for routine implementation choices inside the accord. Pause only when evidence requires a material change to product behavior, public contracts, data migration, deployment behavior, or another boundary the user did not approve. Present and confirm only that delta.
 
@@ -109,7 +130,7 @@ For bugs, locate the earliest point where the state becomes incorrect. Fix that 
 
 ## Form the accord
 
-The initial Accord is the fixed exit from Explore. Produce it only after the user signals that the explored direction is ready to finalize. Render labels in the user's language, but preserve the following section order and meanings so readiness can be reviewed at a glance:
+This section describes the full path; the quick path states its change as described in **Choose the response path**. The initial Accord is the fixed exit from Explore. Produce it only after the user signals that the explored direction is ready to finalize. Render labels in the user's language, but preserve the following section order and meanings so readiness can be reviewed at a glance:
 
 ```markdown
 ## Accord
@@ -146,7 +167,7 @@ One sentence describing the intended result.
 
 Use `Ready after confirmation` when no decision blocks implementation but a separate approval is still required. Use `Pre-authorized` when the user already asked to proceed directly; state the complete Accord, then continue to Build without waiting for another reply. If a user-owned decision remains, use `Blocked by decisions`, list the exact choices under **Open decisions**, and do not ask the user to approve an incomplete implementation scope.
 
-Keep every heading even for small changes, but keep its content proportional; one sentence is enough where appropriate. **Current facts** contains only evidence that affects the implementation decision, not a chronological investigation log. Present one final recommendation rather than preserving rejected alternatives unless a real user decision remains.
+Keep every heading in a full-path Accord, but keep its content proportional: a small scope still gets one sentence per section. **Current facts** contains only evidence that affects the implementation decision, not a chronological investigation log. Present one final recommendation rather than preserving rejected alternatives unless a real user decision remains.
 
 When confirmation is still required, end a ready Accord with one direct request to confirm it. After confirmation, proceed directly to Build without generating a second plan. Produce the initial full Accord only once unless the user explicitly asks for a consolidated restatement or the prior baseline cannot be recovered.
 
@@ -175,16 +196,19 @@ After an initial Accord exists, discuss later changes through the same brief Exp
 
 Omit unchanged goals, facts, scope, risks, and acceptance checks. Use `Merge after confirmation` when approval is still required, `Pre-authorized` when the user already authorized the change, and `Blocked by decisions` when implementation cannot continue.
 
+When the initial change used the quick path, later revisions of the same small scope stay on the quick path: restate the revised change briefly and confirm once. Output an Accord delta only after a full Accord exists.
+
 Before confirmation, keep a proposed delta under checkpoint **Unresolved** and do not overwrite the confirmed scope. **Confirmed scope contains only behavior authorized for Build**; a user preference, tentative agreement, or answer to an Explore question is not enough. After confirmation, merge the delta into the checkpoint's complete current state, increment `accord_revision`, remove it from **Unresolved**, and cross the persistence barrier before Build resumes. During Build, pause for confirmation only when new evidence crosses an unapproved material boundary, and present only the delta. Reissue a full Accord only when the user explicitly requests it or no reliable baseline can be recovered.
 
 ## Recovery checkpoint
 
 The conversation is the primary working surface. Use one short checkpoint only to recover the active change after context compaction, session resumption, or an interrupted implementation. It is a recovery cache, not a second specification system or a history archive.
 
-Use exactly `.codeaccord/checkpoint.md` at the project root. Never create per-change files or accumulate completed records. Decide whether a checkpoint is needed from the task and context:
+Use exactly `.codeaccord/checkpoint.md` at the project root. Never create per-change files or accumulate completed records. Decide whether a checkpoint is needed from the response path:
 
-- create it when investigation or implementation is likely to span context compaction, a session boundary, or a long-running tool call;
-- create it before editing for every non-trivial build;
+- the quick path never creates a checkpoint;
+- on the full path, create it when investigation or implementation is likely to span context compaction, a session boundary, or a long-running tool call;
+- on the full path, create it before editing;
 - skip it only when the whole task is small enough to complete and verify in the current context without meaningful recovery risk.
 
 Keep the checkpoint semantically current. Refresh it:
@@ -196,6 +220,8 @@ Keep the checkpoint semantically current. Refresh it:
 5. before compaction when the platform signals it or the remaining context indicates it is approaching.
 
 Treat each refresh as an actual persistence operation: write the file, read or validate the result, then continue. Because automatic compaction may arrive without warning, also refresh after each completed implementation batch whose conclusions are needed to resume safely; do not leave `Current state` saying that no code has changed after product files have already been edited.
+
+When a checkpoint already exists for this workspace and session, a quick-path edit still changes the worktree and invalidates its stored fingerprint. Update **Current state** and refresh `git_head` and `worktree_fingerprint` before finishing, rather than leaving a stale checkpoint behind.
 
 Do not wait for a mechanical `PreCompact` hook to summarize the conversation. A command hook cannot infer unrecorded decisions reliably. Platform hooks may validate and reload the file, but the active agent owns the semantic update.
 
@@ -270,9 +296,9 @@ When verification is complete and the final result has been reported, remove the
 
 ## Build
 
-After accord:
+After confirmation:
 
-1. Cross the confirmation persistence barrier before the first product edit.
+1. On the full path, cross the confirmation persistence barrier before the first product edit. The quick path has no barrier; its confirmed description is the authorization.
 2. Implement the entire approved scope and preserve unrelated user changes.
 3. Update affected contracts, callers, configuration, migrations, tests, and documentation together.
 4. Follow project-local instructions and established patterns.
@@ -284,6 +310,8 @@ Do not create an OpenSpec change or another planning system unless the user expl
 ## Verify
 
 Run focused checks first, then expand according to the actual impact. Verification must test the agreed behavior rather than merely mirror implementation details.
+
+On the quick path the focused check is the verification: run it and report the result. The full acceptance matrix applies to the full path.
 
 Before declaring completion:
 

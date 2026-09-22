@@ -3,4 +3,5 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 .agents/
+.codeaccord/
 skills-lock.json
