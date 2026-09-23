@@ -1,7 +1,7 @@
 interface:
   display_name: "CodeAccord"
-  short_description: "Explore, agree, implement, verify, and recover changes"
-  default_prompt: "Use $codeaccord to explore this change through brief read-only inspect-and-challenge updates. For a small self-contained change, state a one-to-three-sentence plan and edit after a single confirmation without a checkpoint or full Accord; otherwise wait for the user to finalize the direction before presenting one full Accord, use Accord deltas for later changes, persist every confirmed Accord or delta before product edits, reconcile the checkpoint with Git after compaction, implement only the confirmed scope, and verify the result."
+  short_description: "Investigate, build clear requests, agree when needed, verify"
+  default_prompt: "Use $codeaccord to inspect the real project and challenge assumptions. Treat a clear user request as the minimal specification: before editing identify observable expected behavior and how to check it, asking only if a material expectation is missing. Then implement and verify directly without a separate proposal, spec file, or extra confirmation. When a material decision remains or the user asks to discuss first, compare meaningful options and give a concise recommendation. Any Accord should begin with one complete summary sentence, then only the relevant cause or goal, approach, affected scope, risks, and checks in the user's language. Confirm the decision once unless already authorized. Use one recovery checkpoint only when needed, reconcile it with Git after compaction, preserve the authorized scope, and verify the result."
 
 policy:
   allow_implicit_invocation: true
